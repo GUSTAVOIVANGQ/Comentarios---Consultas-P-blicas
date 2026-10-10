@@ -1,0 +1,15 @@
+[Unit]
+Description=CRT - comentarios de consultas públicas (Podman)
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+# Podman administra el contenedor; el programa corre como crtapp sin root dentro.
+ExecStart=/usr/bin/podman run --rm --name crt-comments --init --shm-size=512m --env-file=/etc/crt-comments/crt.env -v /var/lib/crt-comments/data:/data:z -v /var/log/crt-comments:/logs:z -v /etc/crt-comments/secrets:/secrets:z localhost/crt-comments:3.0 run
+ExecStop=/usr/bin/podman stop -t 30 crt-comments
+TimeoutStartSec=6h
+TimeoutStopSec=60
+Nice=10
+# 2 indica error/parcial y hace fallar el servicio para que el monitoreo lo detecte.
+# 3 indica otra ejecución con el lock; tampoco se oculta como éxito.

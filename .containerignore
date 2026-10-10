@@ -1,0 +1,5 @@
+*
+!requirements.txt
+!crt_comments/
+!crt_comments/**
+crt_comments/__pycache__/

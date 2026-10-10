@@ -1,0 +1,11 @@
+[Unit]
+Description=CRT - cada ocho horas, Ciudad de México
+
+[Timer]
+OnCalendar=*-*-* 00,08,16:00:00 America/Mexico_City
+Persistent=true
+AccuracySec=1min
+Unit=crt-comments.service
+
+[Install]
+WantedBy=timers.target

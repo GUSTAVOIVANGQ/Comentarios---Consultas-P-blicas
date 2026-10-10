@@ -1,0 +1,10 @@
+playwright==1.56.0
+beautifulsoup4==4.14.2
+openpyxl==3.1.5
+requests==2.32.5
+filelock==3.20.0
+tzdata==2025.2
+google-api-python-client==2.185.0
+google-auth==2.41.1
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.2

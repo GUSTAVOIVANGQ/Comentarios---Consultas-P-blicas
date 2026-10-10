@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+data/
+logs/
+.browsers/
+secrets/
+.env
+*.pickle
+*token*.json
+*secret*.json
+credenciales.json

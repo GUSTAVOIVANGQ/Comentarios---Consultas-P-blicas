@@ -1,0 +1,13 @@
+# Mantener esta versión sincronizada con requirements.txt.
+FROM mcr.microsoft.com/playwright/python:v1.56.0-noble
+ARG APP_UID=10001
+ARG APP_GID=10001
+RUN groupadd --gid ${APP_GID} crtapp && useradd --uid ${APP_UID} --gid ${APP_GID} --create-home crtapp
+WORKDIR /app
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt
+COPY crt_comments /app/crt_comments
+ENV PYTHONUNBUFFERED=1 CRT_DATA_DIR=/data CRT_LOG_DIR=/logs
+USER crtapp
+ENTRYPOINT ["python", "-m", "crt_comments"]
+CMD ["run"]
