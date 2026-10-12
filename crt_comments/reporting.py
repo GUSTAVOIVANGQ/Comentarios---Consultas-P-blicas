@@ -26,7 +26,7 @@ def local_file_status(att):
 
 def projection(store, cfg):
     data = {name: [header.copy()] for name, header in HEADERS.items()}
-    pending = 0
+    pending = drive_ready = 0
     for row in store.comments_for_export():
         folio = f"{row['folio']:03d}"
         attachments = json.loads(row['adjuntos_json'])
@@ -40,6 +40,7 @@ def projection(store, cfg):
             url = saved[0] if saved else ''
             if url and status == 'Local verificado':
                 status = 'Local + Drive'
+                drive_ready += 1
             data['Adjuntos'].append([folio, row['consulta_id'], att['nombre'], att['url'], att.get('local',''),
                                       checksum, url, status, row['hash']])
         state = 'Sin adjuntos' if not attachments else ('Completo' if ready==len(attachments) else f'Pendiente ({ready}/{len(attachments)})')
@@ -58,9 +59,12 @@ def projection(store, cfg):
         ['Fuente',cfg.base_url+'/ConsultaPublica'],['Zona horaria','America/Mexico_City'],
         ['Comentarios históricos',len(data['Comentarios'])-1],['Adjuntos registrados',len(data['Adjuntos'])-1],
         ['Adjuntos pendientes',pending],['Consultas registradas',len(data['Consultas'])-1],
+        ['Adjuntos registrados en Drive',drive_ready],
+        ['Adjuntos pendientes de Drive',len(data['Adjuntos'])-1-drive_ready],
+        ['Subida automática a Drive','Activada' if cfg.sync_drive else 'Desactivada'],
         ['Última ejecución',data['Ejecuciones'][1][1] if len(data['Ejecuciones'])>1 else 'Sin ejecuciones'],
         ['Numeración','Folio global permanente: 001, 002… 1000. No depende de la posición de la fila.'],
-        ['Flujo','Descarga local → Excel local → Google Sheets. Drive es opcional.'],
+        ['Flujo','Descarga local → Excel local → Drive → Excel con enlaces → Google Sheets.'],
         ['Estado del archivo','Sin comentarios capturados' if len(data['Comentarios'])==1 else 'Generado desde el registro local'],
         ['Uso','El programa regenera este libro. Crear otra hoja en la nube para anotaciones humanas.'],
         ['Texto extenso','Los textos que exceden el límite de Excel se identifican. SQLite conserva el contenido completo.'],

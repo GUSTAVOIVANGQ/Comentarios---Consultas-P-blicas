@@ -23,7 +23,7 @@ from .storage import Store, now_iso
 
 log = logging.getLogger(__name__)
 WEB = Path(__file__).with_name('web')
-COMMANDS = {'run': ['run'], 'export': ['export'], 'retry': ['retry-downloads'], 'sync': ['sync'], 'bundle': ['bundle']}
+COMMANDS = {'run': ['run'], 'scan-all': ['scan-all'], 'sync-drive': ['sync-drive'], 'export': ['export'], 'retry': ['retry-downloads'], 'sync': ['sync'], 'bundle': ['bundle']}
 
 
 def locked(cfg):
@@ -112,6 +112,7 @@ def overview(cfg,jobs):
                 'jobs':[dict(r) for r in store.conn.execute('SELECT * FROM ui_jobs ORDER BY id DESC LIMIT 10')],
                 'excel_ready':cfg.xlsx_path.is_file(),'bundle_ready':(cfg.data_dir/'paquete_local.zip').is_file(),
                 'last_sync':store.get_meta('last_synced_at','Sin sincronizaciones'),
+                'last_drive_sync':store.get_meta('last_drive_synced_at','Sin sincronizaciones'),
                 'settings':{'sync_sheets':cfg.sync_sheets,'sync_drive':cfg.sync_drive,'interval_hours':cfg.interval_hours},
                 'data_dir':str(cfg.data_dir.resolve())}
     finally:store.close()

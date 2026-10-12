@@ -21,7 +21,7 @@ from crt_comments.discovery import enable_closed
 
 def c(text='Comentario',atts=None):return Comment('Autor','09/10/2026 14:29',None,text,atts or [])
 
-def cfg(tmp):return Config(data_dir=tmp/'data',log_dir=tmp/'logs',page_delay_s=0,download_attachments=False)
+def cfg(tmp):return Config(data_dir=tmp/'data',log_dir=tmp/'logs',page_delay_s=0,download_attachments=False,sync_drive=False)
 
 def save(st,comments):
     assign_keys(24,comments)

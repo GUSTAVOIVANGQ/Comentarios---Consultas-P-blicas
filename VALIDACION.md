@@ -1,17 +1,17 @@
-# Validación de versión 3.0
+# Validación de versión 3.1
 
 Pruebas realizadas en esta entrega; no equivalen a aceptación en producción.
 
 | Verificación | Resultado |
 |---|---|
-| Suite Python | 35 aprobadas; 1 E2E omitida |
+| Suite Python | 48 aprobadas; 1 E2E omitida |
 | Folios | Permanentes, sin renumerar, sin saltos por corridas idénticas, ceros conservados en XLSX y publicación |
 | Migración | Base original sin columna folio; reapertura sin reasignación |
-| Catálogo | Caso del checkbox oculto corregido y probado con un doble |
-| Paginación | Secuencia, totales, barridos discrepantes y contenido parcial |
+| Catálogo | Checkbox oculto, conservación de IDs parciales, rango continuo desde 24 y barrido 1..N |
+| Paginación | Secuencia, totales, barridos discrepantes y contenido parcial; cinco comentarios sin paginador; etiqueta Páginas en plural |
 | Cola local | Firma PDF, origen, tamaño y checksum; fallos mantienen Excel con pendientes |
 | Libro local | Cinco hojas, filtros, hipervínculos y lectura posterior |
-| Google simulado | RAW, rangos deterministas y lectura del XLSX existente |
+| Google simulado | RAW, lectura del XLSX, carpeta sin permisos, cuenta de servicio con Mi unidad, subida binaria con ID reservado, reintento sin duplicados y logs de error |
 | ZIP | Documentos, enlaces relativos, SQLite consistente y manifiesto |
 | UI por HTTP | Lectura, búsqueda, Excel descargable, CSRF, Host y rechazo de rutas externas |
 | UI con proceso real | Botón de exportación lanza CLI, crea XLSX y registra logs |
@@ -22,14 +22,19 @@ Pruebas realizadas en esta entrega; no equivalen a aceptación en producción.
 | Google real | Credenciales no usadas; pendiente validación en la instalación del usuario |
 | Red Hat / Podman | Despliegue preparado; no ejecutado en el servidor del usuario |
 
-El log adjunto aporta evidencia de 33/33 comentarios y 4/4 páginas en la
+El log adjunto de la entrega anterior aporta evidencia de 33/33 comentarios y 4/4 páginas en la
 consulta 24 en la instalación del usuario, pero no entrega el contenido ni los
 adjuntos. El Excel inicial está vacío. No se afirma una descarga real completa
 realizada desde este entorno: el portal presentó un CAPTCHA al abrir el detalle.
 
+El Excel adjunto en esta actualización contiene 33 comentarios de 24, ocho
+adjuntos con estado local verificado y cero URLs Drive. La consulta 25 reporta
+cinco comentarios pero falló sin paginador; 26 reporta cero. Se usa como
+evidencia de diagnóstico, no se cambia ni se simula una captura nueva.
+
 ## Aceptación recomendada en el servidor
 
-1. Respaldar y conservar `data/`, instalar la versión 3 y regenerar el libro.
+1. Respaldar y conservar `data/`, instalar la versión 3.1 y regenerar el libro.
 2. Abrir la UI y comprobar folios y registros existentes de la consulta 24.
 3. Ejecutar una captura de 24,25,26 y comparar el conteo con el portal.
 4. Abrir dos PDFs descargados y comparar autor, URL, firma y checksum.

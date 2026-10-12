@@ -1,4 +1,6 @@
-# CRT Comments 3.0
+
+
+# CRT Comments 3.1
 
 Proyecto Python para capturar comentarios públicos de la CRT, descargar sus
 adjuntos **localmente**, generar un Excel y después publicar sus celdas en Google
@@ -18,12 +20,31 @@ Sheets. Incluye interfaz web local y ejecución cada ocho horas en Red Hat.
 - ZIP portable con Excel, adjuntos, checksums, manifiesto y respaldo de SQLite.
 - Migración automática de las bases del borrador y de la versión 2.
 
-El log proporcionado muestra 33 comentarios y 4 páginas en la consulta 24, y una
-segunda corrida sin duplicados. El archivo no contiene los textos de esos
-comentarios ni sus documentos. Por eso `templates/comentarios_crt.xlsx` es un
-**Excel inicial vacío**, preparado para capturar datos reales, y no una supuesta
-extracción de esos 33 comentarios. La versión 3 usa tu base existente para
-conservarlos y asignarles folios. No se reutilizaron las credenciales del ZIP.
+## Correcciones de esta actualización
+
+El Excel enviado contiene 33 comentarios de la consulta 24, ocho adjuntos
+locales sin URL Drive, y registros para 25 y 26. La consulta 25 reporta cinco
+comentarios pero falla por no tener contador de páginas; la 26 reporta cero.
+No era una corrida limitada a 24. El catálogo también reporta un error de
+12/20 consultas: ahora se conservan los IDs parciales y se recorre el rango.
+
+- `run`: revisa cada ID desde 24 hasta el mayor conocido o descubierto, más
+  una ventana de nuevos IDs. No se detiene ante huecos. Además conserva el
+  sondeo progresivo de respaldo. También revisa consultas finalizadas.
+- Una consulta sin paginador solo se acepta como 1/1 cuando coincide el total
+  reportado, terminó la carga y no hay botón siguiente habilitado.
+- `scan-all --end-id 100`: recorre 1..100, incluyendo activas y finalizadas.
+  Sin límite explícito, usa mayor conocido + `CRT_MAX_ID_SPAN` (500).
+- Drive queda activado por defecto; requiere credencial y permisos. Una
+  variable antigua `CRT_SYNC_DRIVE=false` prevalece y debe actualizarse.
+- `sync-drive`: reintenta descargas locales, sube a Drive y regenera el Excel.
+  No escribe en Sheets. `sync` publica Drive y Sheets, en ese orden.
+- La UI agrega barrido histórico, subida Drive y estado de configuración.
+- [DESPLIEGUE_RHEL.md](DESPLIEGUE_RHEL.md) detalla operación sin fecha final,
+  credenciales, migración, comprobación inicial y horarios cada ocho horas.
+
+Conservar la base SQLite y los PDFs existentes. El Excel no sustituye la base.
+La plantilla incluida sigue vacía; no se inventaron comentarios ni enlaces Drive.
 
 ## Actualizar una instalación existente
 
@@ -67,8 +88,8 @@ python -m venv .venv
 ```
 
 Abrir **http://127.0.0.1:8765**. Después de instalar se puede usar
-`start-ui.bat` en Windows o `./start-ui.sh` en Linux. La UI no necesita conexión
-a Google para operar localmente. Configurar Google se hace mediante el JSON y
+`start-ui.bat` en Windows o `./start-ui.sh` en Linux. Para operar localmente sin Google, configurar `CRT_SYNC_DRIVE=false` antes
+de iniciar la UI. Las acciones de exportación y descarga no requieren Google. Configurar Google se hace mediante el JSON y
 variables de entorno; el panel no muestra ni pide secretos.
 
 | Vista o acción              | Resultado                                                              |
@@ -154,11 +175,13 @@ python -m crt_comments run
 python -m crt_comments export
 python -m crt_comments retry-downloads
 python -m crt_comments bundle
+python -m crt_comments sync-drive
 python -m crt_comments sync
+python -m crt_comments scan-all --end-id 100
 python -m crt_comments ui --port 8765
 ```
 
-- `run` descubre nuevas consultas y revisa conocidas. Por defecto solo opera local.
+- `run` descubre nuevas consultas y revisa conocidas. Por defecto genera Excel y sube a Drive; configurar la credencial. Para operar solo local: `CRT_SYNC_DRIVE=false`.
 - `export`, `retry-downloads` y `bundle` no escriben en Google.
 - `sync` activa explícitamente la escritura en Sheets para esa operación.
 - Para publicar automáticamente en cada corrida: `CRT_SYNC_SHEETS=true`.
@@ -207,8 +230,8 @@ sincronización exitosa queda registrada en la UI. Para automatizar, activar
 
 ### Drive opcional
 
-Los adjuntos se guardan **solo localmente por defecto**. Activar Drive requiere
-`CRT_SYNC_DRIVE=true` y revisar el ID de carpeta copiado del test:
+Los adjuntos se descargan localmente y se suben a Drive **por defecto**. Configurar
+`CRT_GOOGLE_CREDENTIALS`, conservar `CRT_SYNC_DRIVE=true` y revisar el ID de carpeta:
 `CRT_DRIVE_FOLDER_ID=11zSH8drBUGh6yjwpmPjBayrKm7doNwcT`.
 Una cuenta de servicio debe usar una unidad compartida con acceso adecuado;
 para Mi unidad, usar OAuth del usuario que tiene almacenamiento.
@@ -219,7 +242,8 @@ python scripts/authorize_google.py --client /ruta/client_secret.json --output /r
 
 Ejecutar ese paso una vez en una estación con navegador y transferir el JSON por
 un canal seguro. El timer no abre pantallas de login. El token puede revocarse o
-vencer; una app OAuth en Testing puede requerir nueva autorización. El scope
+vencer; una app OAuth en Testing puede requerir nueva autorización. Con los scopes Drive/Sheets, un OAuth externo en Testing expira en siete días.
+Para producción, configurar publicación/verificación o uso interno Workspace. El scope
 Drive completo permite acceder a la carpeta preexistente del ejemplo. El programa
 no modifica permisos ni hace públicos los documentos. No carga archivos pickle.
 Drive utiliza un ID de archivo persistido antes de la subida para reintentar un

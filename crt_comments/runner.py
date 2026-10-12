@@ -10,7 +10,7 @@ from playwright.sync_api import Error as PlaywrightError
 from .attachments import download_missing, make_session
 from .browser import BrowserSession
 from .config import MX_TZ
-from .discovery import discover
+from .discovery import discover, CatalogIncomplete, plan_ids
 from .excel import export_excel
 from .scraper import DetailScraper, TransientError
 from .safety import PortalBlocked
@@ -46,7 +46,7 @@ def _is_finalized(res, now, grace_min):
         return now > snap.periodo_fin + timedelta(minutes=grace_min)
     return snap.estado.lower().endswith(('finalizada', 'cerrada', 'concluida'))
 
-def run_once(cfg, only_ids=None, force=False):
+def run_once(cfg, only_ids=None, force=False, historical=False, end_id=None):
     # --force se conserva por compatibilidad; todas las conocidas se revisan siempre.
     cfg.ensure_dirs()
     lock = FileLock(str(cfg.lock_path), timeout=0)
@@ -71,24 +71,23 @@ def run_once(cfg, only_ids=None, force=False):
             ids = set(only_ids or [])
             probe_end = None
             if only_ids is None:
-                ids.update(known)
                 if cfg.discover_index:
                     try:
                         ids.update(discover(session, cfg))
                     except PortalBlocked:
                         raise
                     except Exception as exc:
+                        if isinstance(exc, CatalogIncomplete):
+                            ids.update(exc.ids)
+                            log.warning('CATALOGO | Se conservan IDs parciales: %s', sorted(exc.ids))
                         warnings += 1
                         notes.append('Índice no validado: ' + str(exc))
                         log.warning(notes[-1])
                         session.reset_page()
                 cursor = int(store.get_meta('probe_cursor', cfg.start_id))
-                # El sondeo avanza cada corrida y vuelve al inicio: reintenta huecos antiguos.
-                ceiling = max(max(ids, default=cfg.start_id), cfg.start_id) + cfg.max_id_span
-                if cursor > ceiling:
-                    cursor = cfg.start_id
-                probe_end = min(cursor + cfg.probe_batch, ceiling + 1)
-                ids.update(range(cursor, probe_end))
+                ids, probe_end = plan_ids(cfg, known, ids, cursor, end_id, historical)
+                log.info('ALCANCE | modo=%s | inicio=%s fin=%s | IDs=%s | activas y finalizadas; sin cortar por huecos',
+                         'histórico' if historical else 'normal', min(ids), max(ids), len(ids))
             scraper = DetailScraper(session, cfg)
             consecutive_errors = 0
             probe_ok = True
@@ -99,6 +98,8 @@ def run_once(cfg, only_ids=None, force=False):
                     result = _scrape_with_retries(scraper, session, cfg, cid)
                     if not result.exists:
                         log.info('CONSULTA %s | no encontrada (HTTP 404/410)',cid)
+                        consecutive_errors = 0
+                        time.sleep(cfg.page_delay_s)
                         if cid in known:
                             warnings += 1
                             notes.append(f'#{cid}: conocida, ahora no encontrada; se conserva el histórico')
@@ -140,6 +141,8 @@ def run_once(cfg, only_ids=None, force=False):
                     store.conn.commit()
                     session.reset_page()
                     if consecutive_errors >= cfg.max_consecutive_errors:
+                        errors += 1
+                        notes.append(f'Barrido incompleto: interrupción en ID {cid}; quedan IDs sin revisar')
                         break
             if probe_end is not None and probe_ok:
                 store.set_meta('probe_cursor', probe_end)

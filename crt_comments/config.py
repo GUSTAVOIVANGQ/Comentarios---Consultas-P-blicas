@@ -56,7 +56,7 @@ class Config:
     spreadsheet_id: str = "115cwia3lnqSTNIy8ndqlp7woN1tWnepjpMIZTxgn-28"
     google_credentials: str = ""
     sync_sheets: bool = False
-    sync_drive: bool = False
+    sync_drive: bool = True
     drive_folder_id: str = "11zSH8drBUGh6yjwpmPjBayrKm7doNwcT"
     browser_executable: str = ""
     browser_sandbox: bool = True
@@ -131,7 +131,7 @@ class Config:
                 value = float(value)
             setattr(cfg, field.name, value)
         cfg.base_url = cfg.base_url.rstrip("/")
-        for name in ("probe_batch", "max_id_span", "nav_timeout_ms", "load_timeout_s", "scrape_retries",
+        for name in ("start_id", "probe_batch", "max_id_span", "nav_timeout_ms", "load_timeout_s", "scrape_retries",
                      "max_pages_per_consulta", "max_attachment_mb", "interval_hours"):
             if getattr(cfg, name) <= 0:
                 raise ValueError(f"{name} debe ser mayor que cero")

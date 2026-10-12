@@ -5,7 +5,7 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-ExecStart=/usr/bin/podman run --rm --name crt-comments-ui --init --shm-size=512m --env-file=/etc/crt-comments/crt.env -p 127.0.0.1:8765:8765 -v /var/lib/crt-comments/data:/data:z -v /var/log/crt-comments:/logs:z -v /etc/crt-comments/secrets:/secrets:z localhost/crt-comments:3.0 ui --host 0.0.0.0 --port 8765
+ExecStart=/usr/bin/podman run --rm --name crt-comments-ui --init --shm-size=512m --env-file=/etc/crt-comments/crt.env -p 127.0.0.1:8765:8765 -v /var/lib/crt-comments/data:/data:z -v /var/log/crt-comments:/logs:z -v /etc/crt-comments/secrets:/secrets:z localhost/crt-comments:3.1 ui --host 0.0.0.0 --port 8765
 ExecStop=/usr/bin/podman stop -t 30 crt-comments-ui
 Restart=on-failure
 RestartSec=10

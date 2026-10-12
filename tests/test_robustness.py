@@ -110,6 +110,8 @@ def test_sheets_uses_raw_and_only_managed_tabs(tmp_path):
 def test_drive_retries_use_persisted_id(tmp_path):
     store=Store(tmp_path/'db')
     p=tmp_path/'a.pdf';p.write_bytes(b'%PDF-test')
+    import hashlib
+    p.with_suffix('.pdf.sha256').write_text(hashlib.sha256(p.read_bytes()).hexdigest())
     store.save_validated(24,'https://x',result([comment(attachments=[Attachment('a.pdf',Response.url,str(p))])]),False)
     drive=Mock()
     drive.files.return_value.generateIds.return_value.execute.return_value={'ids':['same-id']}
@@ -143,7 +145,7 @@ def test_runner_additions_closed_consultas_and_idempotency(tmp_path, monkeypatch
     from contextlib import nullcontext
     from datetime import datetime
     from crt_comments.config import MX_TZ
-    cfg=Config(data_dir=tmp_path/'data',log_dir=tmp_path/'logs',download_attachments=False,page_delay_s=0)
+    cfg=Config(data_dir=tmp_path/'data',log_dir=tmp_path/'logs',download_attachments=False,page_delay_s=0,sync_drive=False)
     session=Mock()
     monkeypatch.setattr(runner,'BrowserSession',lambda cfg: nullcontext(session))
     items=[comment('A')]
@@ -165,7 +167,7 @@ def test_runner_additions_closed_consultas_and_idempotency(tmp_path, monkeypatch
 def test_runner_quarantines_partial_and_reports_failure(tmp_path, monkeypatch):
     import crt_comments.runner as runner
     from contextlib import nullcontext
-    cfg=Config(data_dir=tmp_path/'data',log_dir=tmp_path/'logs',download_attachments=False,page_delay_s=0)
+    cfg=Config(data_dir=tmp_path/'data',log_dir=tmp_path/'logs',download_attachments=False,page_delay_s=0,sync_drive=False)
     monkeypatch.setattr(runner,'BrowserSession',lambda cfg: nullcontext(Mock()))
     partial=result([comment('A')]);partial.validation_ok=False;partial.notes=['Falta página']
     monkeypatch.setattr(runner,'_scrape_with_retries',lambda *args: partial)

@@ -198,7 +198,7 @@ def parse_detail_html(html: str, base_url: str = "https://portal.crt.gob.mx") ->
     if (m := re.search(r"Participantes\s+[uú]nicos\s+(\d+)", text, re.I)):
         snap.participantes_unicos = int(m.group(1))
 
-    if (m := re.search(r"P[aá]gina\s+(\d+)(?:\s+de\s+(\d+))?", text)):
+    if (m := re.search(r"P[aá]ginas?\s+(\d+)(?:\s+de\s+(\d+))?", text, re.I)):
         snap.page_current = int(m.group(1))
         snap.page_total = int(m.group(2)) if m.group(2) else None
 
@@ -220,4 +220,17 @@ def parse_detail_html(html: str, base_url: str = "https://portal.crt.gob.mx") ->
             c = _parse_card(card, base_url)
             if c:
                 snap.comments.append(c)
+        # El portal puede omitir el paginador cuando todo cabe en una página.
+        # Solo inferir 1/1 si coinciden TODOS los comentarios reportados y no
+        # existe un control siguiente habilitado. Nunca validar un parcial.
+        next_controls = [el for el in section.find_all(['button', 'a'])
+                         if re.search(r'^Siguientes?(?: página)?$', el.get_text(' ', strip=True), re.I)]
+        enabled_next = any(not el.has_attr('disabled') and el.get('aria-disabled') != 'true'
+                           and 'disabled' not in ' '.join(el.get('class', [])) for el in next_controls)
+        if (not snap.loading and snap.page_total is None
+                and snap.page_current in (None, 1)
+                and snap.total_reportado is not None
+                and len(snap.comments) == snap.total_reportado
+                and not enabled_next):
+            snap.page_current = snap.page_total = 1
     return snap

@@ -14,7 +14,7 @@ if [[ ! -f /etc/crt-comments/crt.env ]]; then
   install -m 0600 "$PROJECT_ROOT/deploy/crt.env.example" /etc/crt-comments/crt.env
 fi
 podman build --build-arg APP_UID="$CRT_UID" --build-arg APP_GID="$CRT_GID" \
-  -t localhost/crt-comments:3.0 -f "$PROJECT_ROOT/deploy/Containerfile" "$PROJECT_ROOT"
+  -t localhost/crt-comments:3.1 -f "$PROJECT_ROOT/deploy/Containerfile" "$PROJECT_ROOT"
 install -m 0644 "$PROJECT_ROOT/deploy/crt-comments.service" "$PROJECT_ROOT/deploy/crt-comments.timer" "$PROJECT_ROOT/deploy/crt-comments-ui.service" /etc/systemd/system/
 systemctl daemon-reload
 echo 'Instalado. Primera corrida: systemctl start crt-comments.service'

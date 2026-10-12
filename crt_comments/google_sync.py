@@ -18,6 +18,7 @@ from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaFileUpload
 from .attachments import _digest
+from .reporting import local_file_status
 
 log = logging.getLogger(__name__)
 
@@ -49,15 +50,33 @@ def credentials(path):
 def execute(request):
     return request.execute(num_retries=5)
 
+def validate_drive_folder(cfg, drive, creds):
+    if not cfg.drive_folder_id:
+        raise ValueError('Falta CRT_DRIVE_FOLDER_ID')
+    try:
+        folder = execute(drive.files().get(fileId=cfg.drive_folder_id,
+                         fields='id,name,mimeType,trashed,driveId,capabilities(canAddChildren)', supportsAllDrives=True))
+    except HttpError as exc:
+        raise RuntimeError(f'Drive HTTP {exc.resp.status}: revisar ID de carpeta, permisos y Drive API') from exc
+    if folder.get('mimeType') != 'application/vnd.google-apps.folder' or folder.get('trashed'):
+        raise ValueError('El destino de Drive no es una carpeta válida')
+    if isinstance(creds, ServiceCredentials) and not folder.get('driveId'):
+        raise ValueError('Cuenta de servicio sin almacenamiento en Mi unidad: usar OAuth de usuario o una unidad compartida')
+    if not folder.get('capabilities', {}).get('canAddChildren'):
+        raise PermissionError('La credencial no puede agregar archivos a la carpeta de Drive')
+    log.info('DRIVE | destino=%s | id=%s | acceso de escritura verificado', folder.get('name'), cfg.drive_folder_id)
+
 def sync_drive(store, cfg, drive):
     if not cfg.drive_folder_id:
         raise ValueError('Falta CRT_DRIVE_FOLDER_ID')
     failures = []
+    uploaded = reused = 0
     # Incluye archivados: un adjunto pendiente no desaparece al cerrar la consulta.
     for row in store.comments_for_export():
         for att in json.loads(row['adjuntos_json']):
             path = Path(att.get('local') or '')
-            if not path.is_file():
+            if local_file_status(att)[0] != 'Local verificado':
+                log.error('DRIVE | folio=%03d consulta=%s archivo=%s | copia local no verificada', row['folio'], row['consulta_id'], att['nombre'])
                 failures.append(att['nombre'])
                 continue
             checksum = _digest(path)
@@ -65,6 +84,7 @@ def sync_drive(store, cfg, drive):
             saved = store.conn.execute('SELECT * FROM drive_files WHERE key=?', (key,)).fetchone()
             try:
                 if saved and saved['url']:
+                    reused += 1
                     continue
                 if not saved:
                     file_id = execute(drive.files().generateIds(count=1, space='drive'))['ids'][0]
@@ -86,8 +106,15 @@ def sync_drive(store, cfg, drive):
                 store.conn.execute('UPDATE drive_files SET url=? WHERE key=?',
                                    (remote.get('webViewLink') or f'https://drive.google.com/file/d/{file_id}/view', key))
                 store.conn.commit()
-            except Exception:
+                uploaded += 1
+                log.info('DRIVE | folio=%03d consulta=%s archivo=%s | guardado | id=%s', row['folio'], row['consulta_id'], path.name, file_id)
+            except Exception as exc:
+                log.error('DRIVE | folio=%03d consulta=%s archivo=%s | FALLÓ | %s: %s', row['folio'], row['consulta_id'], path.name, type(exc).__name__, exc)
                 failures.append(att['nombre'])
+    log.info('DRIVE | nuevos=%s ya registrados=%s pendientes=%s', uploaded, reused, len(failures))
+    if not failures:
+        from .storage import now_iso
+        store.set_meta('last_drive_synced_at', now_iso())
     return failures
 
 def _cell(value):
@@ -169,7 +196,9 @@ def synchronize(store, cfg):
     failures=[]
     if cfg.sync_drive:
         log.info('DRIVE | Iniciando subida de adjuntos locales')
-        failures=sync_drive(store,cfg,build('drive','v3',credentials=creds,cache_discovery=False))
+        drive=build('drive','v3',credentials=creds,cache_discovery=False)
+        validate_drive_folder(cfg,drive,creds)
+        failures=sync_drive(store,cfg,drive)
         # Incorporar los enlaces remotos ANTES de publicar el Excel en Sheets.
         from .excel import export_excel
         export_excel(store,cfg.xlsx_path,cfg)

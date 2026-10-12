@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from dataclasses import dataclass, field
 from typing import Callable, List, Optional
@@ -101,7 +102,8 @@ class DetailScraper:
             raise
 
     def _click_next(self) -> bool:
-        loc = self.page.locator("button:has-text('Siguientes'), a:has-text('Siguientes')")
+        name = re.compile(r'^Siguientes?(?: página)?$', re.I)
+        loc = self.page.get_by_role('button', name=name).or_(self.page.get_by_role('link', name=name))
         for i in range(loc.count()):
             btn = loc.nth(i)
             if not btn.is_visible():
